@@ -1,0 +1,7 @@
+[package]
+name = "aspace_generic"
+version = "0.1.0"
+edition = "2024"
+description = "Address space generics."
+
+[dependencies]
