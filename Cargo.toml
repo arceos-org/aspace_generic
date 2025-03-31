@@ -5,3 +5,9 @@ edition = "2024"
 description = "Address space generics."
 
 [dependencies]
+log = "=0.4.21"
+axerrno = "0.1.0"
+memory_addr = "0.3"
+memory_set = "0.3"
+page_table_entry = "0.5"
+page_table_multiarch = "0.5"
