@@ -1,0 +1,14 @@
+[package]
+name = "aspace_generic"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+log = "0.4"
+memory_addr = "0.3"
+memory_set = "0.3"
+page_table_entry = "0.5"
+page_table_multiarch = "0.5"
+
+# Operating system independent modules provided by ArceOS.
+axerrno = "0.1.0"
