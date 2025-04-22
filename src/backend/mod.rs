@@ -81,13 +81,15 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> MappingBackend for Ba
 
     fn protect(
         &self,
-        _start: Self::Addr,
-        _size: usize,
-        _new_flags: MappingFlags,
-        _page_table: &mut Self::PageTable,
+        start: Self::Addr,
+        size: usize,
+        new_flags: Self::Flags,
+        page_table: &mut Self::PageTable,
     ) -> bool {
-        // a stub here
-        true
+        page_table
+            .protect_region(start, size, new_flags, true)
+            .map(|tlb| tlb.ignore())
+            .is_ok()
     }
 }
 

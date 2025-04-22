@@ -17,24 +17,18 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> Backend<M, PTE, H> {
         pt: &mut PageTable64<M, PTE, H>,
         pa_va_offset: usize,
     ) -> bool {
-        let pa_start = PhysAddr::from(start.into() - pa_va_offset);
+        let va_to_pa = |va: M::VirtAddr| PhysAddr::from(va.into() - pa_va_offset);
         debug!(
             "map_linear: [{:#x}, {:#x}) -> [{:#x}, {:#x}) {:?}",
             start,
             start.into() + size,
-            pa_start,
-            pa_start + size,
+            va_to_pa(start),
+            va_to_pa((start.into() + size).into()),
             flags
         );
-        pt.map_region(
-            start,
-            |va| PhysAddr::from(va.into() - pa_va_offset),
-            size,
-            flags,
-            false,
-            false,
-        )
-        .is_ok()
+        pt.map_region(start, va_to_pa, size, flags, false, false)
+            .map(|tlb| tlb.ignore()) // TLB flush on map is unnecessary, as there are no outdated mappings.
+            .is_ok()
     }
 
     pub(crate) fn unmap_linear(
@@ -45,6 +39,8 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> Backend<M, PTE, H> {
         _pa_va_offset: usize,
     ) -> bool {
         debug!("unmap_linear: [{:#x}, {:#x})", start, start.into() + size);
-        pt.unmap_region(start, size, true).is_ok()
+        pt.unmap_region(start, size, true)
+            .map(|tlb| tlb.ignore()) // flush each page on unmap, do not flush the entire TLB.
+            .is_ok()
     }
 }

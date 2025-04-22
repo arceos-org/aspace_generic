@@ -1,4 +1,4 @@
-use memory_addr::{PageIter4K, PhysAddr};
+use memory_addr::PageIter4K;
 use page_table_multiarch::{PageTable64, MappingFlags, PageSize, PagingHandler, PagingMetaData, GenericPTE};
 
 use super::Backend;
@@ -32,26 +32,18 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> Backend<M, PTE, H> {
         if populate {
             // allocate all possible physical frames for populated mapping.
             for addr in PageIter4K::new(start, (start.into() + size).into()).unwrap() {
-                if H::alloc_frame()
-                    .and_then(|frame| pt.map(addr, frame, PageSize::Size4K, flags).ok())
-                    .is_none()
-                {
-                    return false;
+                if let Some(frame) = H::alloc_frame() {
+                    if let Ok(tlb) = pt.map(addr, frame, PageSize::Size4K, flags) {
+                        tlb.ignore(); // TLB flush on map is unnecessary, as there are no outdated mappings.
+                    } else {
+                        return false;
+                    }
                 }
             }
-            true
         } else {
-            // Map to a empty entry for on-demand mapping.
-            pt.map_region(
-                start,
-                |_va| PhysAddr::from(0),
-                size,
-                MappingFlags::empty(),
-                false,
-                false,
-            )
-            .is_ok()
+            // create mapping entries on demand later in `handle_page_fault_alloc`.
         }
+        true
     }
 
     pub(crate) fn unmap_alloc(
@@ -63,12 +55,13 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> Backend<M, PTE, H> {
     ) -> bool {
         debug!("unmap_alloc: [{:#x}, {:#x})", start, start.into() + size);
         for addr in PageIter4K::new(start, (start.into() + size).into()).unwrap() {
-            if let Ok((frame, page_size, _)) = pt.unmap(addr) {
+            if let Ok((frame, page_size, tlb)) = pt.unmap(addr) {
                 // Deallocate the physical frame if there is a mapping in the
                 // page table.
                 if page_size.is_huge() {
                     return false;
                 }
+                tlb.flush();
                 H::dealloc_frame(frame);
             } else {
                 // It's fine if the page is not mapped.
@@ -86,13 +79,15 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> Backend<M, PTE, H> {
     ) -> bool {
         if populate {
             false // Populated mappings should not trigger page faults.
-        } else {
+        } else if let Some(frame) = H::alloc_frame() {
             // Allocate a physical frame lazily and map it to the fault address.
             // `vaddr` does not need to be aligned. It will be automatically
-            // aligned during `pt.remap` regardless of the page size.
-            H::alloc_frame()
-                .and_then(|frame| pt.remap(vaddr, frame, orig_flags).ok())
-                .is_some()
+            // aligned during `pt.map` regardless of the page size.
+            pt.map(vaddr, frame, PageSize::Size4K, orig_flags)
+                .map(|tlb| tlb.flush())
+                .is_ok()
+        } else {
+            false
         }
     }
 }
