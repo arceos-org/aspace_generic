@@ -1,6 +1,7 @@
 //! AddressSpace generic type for arceos and its extensions.
 
 #![no_std]
+#![feature(debug_closure_helpers)]
 
 #[macro_use]
 extern crate log;
@@ -454,7 +455,7 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> AddrSpace<M, PTE, H> 
         self.pt
             .query(vaddr)
             .map(|(phys_addr, _, _)| {
-                debug!("vaddr {:?} translate to {:?}", vaddr, phys_addr);
+                debug!("vaddr {:?} translate to {:?}", vaddr.into(), phys_addr);
                 phys_addr
             })
             .ok()
@@ -486,8 +487,8 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> AddrSpace<M, PTE, H> 
 
             debug!(
                 "start {:?} end {:?} area size {:#x}",
-                start,
-                end,
+                start.into(),
+                end.into(),
                 area.size()
             );
 
@@ -532,11 +533,20 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> AddrSpace<M, PTE, H> 
 
 impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> fmt::Debug for AddrSpace<M, PTE, H> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("AddrSpace")
-            .field("va_range", &self.va_range)
-            .field("page_table_root", &self.pt.root_paddr())
-            .field("areas", &self.areas)
-            .finish()
+        writeln!(f, "struct AddrSpace {{")?;
+        writeln!(f, "\tva_range: {:#x}..{:#x}",
+            self.va_range.start.into(), self.va_range.end.into())?;
+        writeln!(f, "\tpage_table_root: {:?}", &self.pt.root_paddr())?;
+        writeln!(f, "\tareas: [")?;
+        for area in self.areas.iter() {
+            writeln!(f, "\t\tstruct MemoryArea {{")?;
+            writeln!(f, "\t\t\tva_range: {:#x}..{:#x}",
+                area.va_range().start.into(), area.va_range().end.into())?;
+            writeln!(f, "\t\t\tflags: {:?}", &area.flags())?;
+            writeln!(f, "\t\t}}")?;
+        }
+        writeln!(f, "\t]")?;
+        write!(f, "}}")
     }
 }
 

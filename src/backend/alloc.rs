@@ -24,7 +24,7 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> Backend<M, PTE, H> {
     ) -> bool {
         debug!(
             "map_alloc: [{:#x}, {:#x}) {:?} (populate={})",
-            start,
+            start.into(),
             start.into() + size,
             flags,
             populate
@@ -53,7 +53,7 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> Backend<M, PTE, H> {
         pt: &mut PageTable64<M, PTE, H>,
         _populate: bool,
     ) -> bool {
-        debug!("unmap_alloc: [{:#x}, {:#x})", start, start.into() + size);
+        debug!("unmap_alloc: [{:#x}, {:#x})", start.into(), start.into() + size);
         for addr in PageIter4K::new(start, (start.into() + size).into()).unwrap() {
             if let Ok((frame, page_size, tlb)) = pt.unmap(addr) {
                 // Deallocate the physical frame if there is a mapping in the

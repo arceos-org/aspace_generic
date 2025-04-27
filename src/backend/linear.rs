@@ -20,7 +20,7 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> Backend<M, PTE, H> {
         let va_to_pa = |va: M::VirtAddr| PhysAddr::from(va.into() - pa_va_offset);
         debug!(
             "map_linear: [{:#x}, {:#x}) -> [{:#x}, {:#x}) {:?}",
-            start,
+            start.into(),
             start.into() + size,
             va_to_pa(start),
             va_to_pa((start.into() + size).into()),
@@ -38,7 +38,7 @@ impl<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> Backend<M, PTE, H> {
         pt: &mut PageTable64<M, PTE, H>,
         _pa_va_offset: usize,
     ) -> bool {
-        debug!("unmap_linear: [{:#x}, {:#x})", start, start.into() + size);
+        debug!("unmap_linear: [{:#x}, {:#x})", start.into(), start.into() + size);
         pt.unmap_region(start, size, true)
             .map(|tlb| tlb.ignore()) // flush each page on unmap, do not flush the entire TLB.
             .is_ok()
